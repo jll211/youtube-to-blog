@@ -1,32 +1,35 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-console.log("video-info function loading...")
+import { load } from 'https://deno.land/x/youtube_dl/mod.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const { url } = await req.json()
-    
-    // For now, return mock data
-    const videoInfo = {
-      title: "Sample Video",
-      duration: 5,
-      author: "Sample Author"
-    }
-    
+
+    // Get video info using youtube-dl
+    const yt = await load(url)
+    const info = await yt.getInfo()
+
+    // Calculate duration in minutes
+    const durationMinutes = Math.ceil(parseInt(info.duration) / 60)
+
+    // Calculate estimated costs
     const costEstimate = {
-      whisperCost: videoInfo.duration * 0.006,
-      gptCost: videoInfo.duration * 0.002,
-      totalCost: videoInfo.duration * 0.008
+      whisperCost: durationMinutes * 0.006,  // $0.006 per minute
+      gptCost: (durationMinutes * 150) * 0.00001,  // Estimate 150 tokens per minute, $0.01 per 1K tokens
+      totalCost: 0
+    }
+    costEstimate.totalCost = costEstimate.whisperCost + costEstimate.gptCost
+
+    const videoInfo = {
+      title: info.title,
+      duration: durationMinutes,
+      author: info.uploader,
+      thumbnail: info.thumbnail
     }
 
     return new Response(
@@ -53,7 +56,7 @@ serve(async (req) => {
           ...corsHeaders, 
           'Content-Type': 'application/json' 
         }, 
-        status: 500 
+        status: 400 
       }
     )
   }
