@@ -22,7 +22,7 @@ serve(async (req) => {
     // Create Supabase client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SERVICE_ROLE_KEY') ?? '', // Changed to match our new secret name
       {
         auth: {
           autoRefreshToken: false,
