@@ -1,88 +1,74 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 console.log("convert function loading...")
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const { url } = await req.json()
-    const authHeader = req.headers.get('Authorization')
     
+    // Get auth header
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('No authorization header')
+      throw new Error('Missing auth header')
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
+    // Create Supabase client
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
-        global: {
-          headers: {
-            Authorization: authHeader
-          }
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
         }
       }
     )
 
-    // Create a conversion record
-    const { data, error } = await supabaseClient
-      .from('conversions')
-      .insert({
-        url,
-        status: 'processing',
-        progress: 0
-      })
-      .select()
-      .single()
+    // Get user from auth header
+    const user = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (user.error) {
+      throw new Error('Invalid auth token')
+    }
 
-    if (error) throw error
-
-    // Simulate processing (we'll implement real processing later)
-    setTimeout(async () => {
-      await supabaseClient
-        .from('conversions')
-        .update({
-          status: 'completed',
-          progress: 100,
-          blog_post: 'This is a sample blog post generated from the video.'
-        })
-        .eq('id', data.id)
-    }, 5000)
+    // For now, return mock data
+    const blogPost = {
+      title: "Sample Blog Post",
+      content: "This is a sample blog post generated from the video. We'll implement real conversion later."
+    }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        id: data.id 
+      JSON.stringify({
+        success: true,
+        blogPost: blogPost.content
       }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 200
       }
     )
   } catch (error) {
+    console.error('Error:', error.message)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }, 
-        status: 500 
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 400
       }
     )
   }
