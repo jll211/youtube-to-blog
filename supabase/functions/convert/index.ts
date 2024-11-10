@@ -2,8 +2,6 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-console.log("convert function loading...")
-
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -11,42 +9,18 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Request received")
     const { url } = await req.json()
+    console.log("URL received:", url)
     
-    // Get auth header
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Missing auth header')
-    }
+    console.log("Auth header:", authHeader ? "Present" : "Missing")
 
-    // Create Supabase client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SERVICE_ROLE_KEY') ?? '', // Changed to match our new secret name
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
-    // Get user from auth header
-    const user = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (user.error) {
-      throw new Error('Invalid auth token')
-    }
-
-    // For now, return mock data
-    const blogPost = {
-      title: "Sample Blog Post",
-      content: "This is a sample blog post generated from the video. We'll implement real conversion later."
-    }
-
+    // For debugging, let's return a simple success response
     return new Response(
       JSON.stringify({
         success: true,
-        blogPost: blogPost.content
+        blogPost: "This is a test blog post."
       }),
       {
         headers: {
@@ -68,7 +42,7 @@ serve(async (req) => {
           ...corsHeaders,
           'Content-Type': 'application/json'
         },
-        status: 400
+        status: 200  // Changed from 400 to 200 for testing
       }
     )
   }
